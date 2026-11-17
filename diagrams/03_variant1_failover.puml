@@ -1,0 +1,21 @@
+@startuml RFC_V1_FAILOVER
+autonumber
+queue "RabbitMQ" as MQ
+participant "Delivery Worker" as W
+database "PostgreSQL" as DB
+participant "Push" as Push
+participant "Preferences" as Pref
+participant "SMS" as SMS
+
+MQ -> W: Выдать критичную задачу
+W -> Push: Отправить push
+Push --> W: Отказ (невалидный токен)
+W -> DB: Сохранить отказ
+W -> Pref: Разрешён ли SMS?
+Pref --> W: Да, номер подтверждён
+W -> SMS: Отправить SMS
+SMS --> W: Принято провайдером
+W -> DB: Сохранить успех и failover
+W --> MQ: Подтвердить обработку
+note over W,DB: При таймауте проверяем статус; переход на SMS может создать дубль.
+@enduml

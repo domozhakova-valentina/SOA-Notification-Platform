@@ -1,0 +1,25 @@
+@startuml RFC_V1_SUCCESS
+autonumber
+participant "Банковский сервис" as Bank
+participant "Notification API" as API
+database "PostgreSQL" as DB
+participant "Outbox Publisher" as Pub
+queue "RabbitMQ" as MQ
+participant "Delivery Worker" as W
+participant "Preferences" as Pref
+participant "Push" as Push
+
+Bank -> API: Событие о переводе
+API -> DB: Уведомление + outbox (транзакция)
+DB --> API: Сохранено
+API --> Bank: Принято
+Pub -> DB: Прочитать outbox
+Pub -> MQ: Опубликовать задачу
+MQ -> W: Выдать задачу
+W -> Pref: Проверить push
+Pref --> W: Разрешён
+W -> Push: Отправить
+Push --> W: Принято провайдером
+W -> DB: Сохранить успех
+W --> MQ: Подтвердить обработку
+@enduml

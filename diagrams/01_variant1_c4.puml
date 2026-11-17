@@ -1,0 +1,29 @@
+@startuml RFC_V1_C4
+!include <C4/C4_Container>
+LAYOUT_LEFT_RIGHT()
+title Вариант 1 — RabbitMQ + PostgreSQL (C4 Container)
+
+System_Ext(bank, "Банковские сервисы", "События об операциях")
+System_Ext(prefs, "Preferences Service", "Контакты и разрешённые каналы")
+System_Ext(prov, "Push / SMS / Email", "Провайдеры отправки")
+
+System_Boundary(np, "Notification Platform — критичный поток") {
+  Container(api, "Notification API", "Spring Boot", "Приём событий и статусов")
+  ContainerDb(db, "Notification DB", "PostgreSQL HA", "Уведомления, попытки, outbox")
+  Container(pub, "Outbox Publisher", "Spring Boot", "Публикация задач")
+  Container(mq, "Critical Queue", "RabbitMQ quorum", "Устойчивая очередь")
+  Container(worker, "Delivery Worker", "Spring Boot", "Выбор канала, retry, failover")
+  Container(retry, "Retry Scheduler", "Spring Boot", "Отложенные повторы")
+}
+
+Rel(bank, api, "Событие", "HTTPS")
+Rel(api, db, "Сохраняет", "SQL")
+Rel(pub, db, "Читает outbox", "SQL")
+Rel(pub, mq, "Публикует", "AMQP")
+Rel(mq, worker, "Выдаёт задачу", "AMQP")
+Rel(worker, db, "Сохраняет результат", "SQL")
+Rel(worker, prefs, "Проверяет разрешения", "HTTPS")
+Rel(worker, prov, "Отправляет", "HTTPS")
+Rel(retry, db, "Читает повторы", "SQL")
+Rel(retry, mq, "Публикует повтор", "AMQP")
+@enduml

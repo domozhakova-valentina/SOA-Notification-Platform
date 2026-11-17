@@ -1,0 +1,25 @@
+@startuml RFC_V2_SUCCESS
+autonumber
+participant "Банковский сервис" as Bank
+participant "Notification API" as API
+database "PostgreSQL" as DB
+participant "Outbox Relay" as Relay
+queue "Kafka" as Kafka
+participant "Workflow Worker" as W
+participant "Temporal" as T
+participant "Push" as Push
+
+Bank -> API: Событие о переводе
+API -> DB: Уведомление + outbox (транзакция)
+DB --> API: Сохранено
+API --> Bank: Принято
+Relay -> DB: Прочитать outbox
+Relay -> Kafka: Опубликовать событие
+Kafka -> W: Прочитать событие
+W -> T: Запустить workflow с notification_id
+T -> W: Выполнить шаг отправки
+W -> Push: Отправить
+Push --> W: Принято провайдером
+W -> DB: Сохранить успех
+W --> T: Шаг завершён
+@enduml

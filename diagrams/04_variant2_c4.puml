@@ -1,0 +1,29 @@
+@startuml RFC_V2_C4
+!include <C4/C4_Container>
+LAYOUT_LEFT_RIGHT()
+title Вариант 2 — Kafka + Temporal (C4 Container)
+
+System_Ext(bank, "Банковские сервисы", "События об операциях")
+System_Ext(prefs, "Preferences Service", "Контакты и разрешённые каналы")
+System_Ext(prov, "Push / SMS / Email", "Провайдеры отправки")
+
+System_Boundary(np, "Notification Platform — критичный поток") {
+  Container(api, "Notification API", "Spring Boot", "Приём событий и статусов")
+  ContainerDb(db, "Notification DB", "PostgreSQL HA", "Уведомления, попытки, outbox")
+  Container(relay, "Outbox Relay", "Java / CDC", "Публикация событий")
+  Container(k, "Critical Events", "Apache Kafka", "Устойчивый поток событий")
+  Container(t, "Workflow Engine", "Temporal", "Таймеры, retry, workflow")
+  Container(w, "Workflow Workers", "Java / Temporal SDK", "Потребитель Kafka и доставка")
+}
+
+Rel(bank, api, "Событие", "HTTPS")
+Rel(api, db, "Сохраняет", "SQL")
+Rel(relay, db, "Читает outbox", "SQL/CDC")
+Rel(relay, k, "Публикует", "Kafka")
+Rel(k, w, "Событие", "Kafka")
+Rel(w, t, "Запускает workflow", "gRPC")
+Rel(t, w, "Задачи доставки", "gRPC")
+Rel(w, db, "Сохраняет результат", "SQL")
+Rel(w, prefs, "Проверяет разрешения", "HTTPS")
+Rel(w, prov, "Отправляет", "HTTPS")
+@enduml

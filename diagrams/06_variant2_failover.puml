@@ -1,0 +1,23 @@
+@startuml RFC_V2_FAILOVER
+autonumber
+participant "Temporal" as T
+participant "Workflow Worker" as W
+database "PostgreSQL" as DB
+participant "Push" as Push
+participant "Preferences" as Pref
+participant "SMS" as SMS
+
+T -> W: Выполнить push activity
+W -> Push: Отправить push
+Push --> W: Отказ (невалидный токен)
+W -> DB: Сохранить отказ
+W --> T: Основной канал недоступен
+T -> W: Выполнить SMS activity
+W -> Pref: Проверить канал и номер
+Pref --> W: SMS разрешён
+W -> SMS: Отправить SMS
+SMS --> W: Принято провайдером
+W -> DB: Сохранить успех
+W --> T: Завершить workflow
+note over T,W: При UNKNOWN Temporal ожидает и проверяет статус.
+@enduml
